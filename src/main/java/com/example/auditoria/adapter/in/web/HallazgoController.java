@@ -17,6 +17,7 @@ import org.springframework.web.bind.annotation.PatchMapping;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
+import org.springframework.web.bind.annotation.RequestHeader;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.ResponseStatus;
 import org.springframework.web.bind.annotation.RestController;
@@ -28,6 +29,9 @@ import java.util.Map;
 @RestController
 @RequestMapping("/api/hallazgos")
 public class HallazgoController {
+
+    /** Cabecera con el usuario que origina el cambio (en produccion vendria del token de autenticacion). */
+    static final String USUARIO = "X-Usuario";
 
     private final RegistrarHallazgoUseCase registrarUseCase;
     private final IniciarRemediacionUseCase iniciarRemediacionUseCase;
@@ -49,28 +53,32 @@ public class HallazgoController {
 
     @PostMapping
     @ResponseStatus(HttpStatus.CREATED)
-    public Map<String, String> registrar(@Valid @RequestBody RegistrarHallazgoRequest req) {
+    public Map<String, String> registrar(@Valid @RequestBody RegistrarHallazgoRequest req,
+                                         @RequestHeader(value = USUARIO, defaultValue = "anonimo") String usuario) {
         HallazgoId id = registrarUseCase.ejecutar(
-                req.titulo(), req.descripcion(), req.areaResponsable(), req.severidad(), req.fechaDeteccion());
+                req.titulo(), req.descripcion(), req.areaResponsable(), req.severidad(), req.fechaDeteccion(), usuario);
         return Map.of("hallazgoId", id.toString());
     }
 
     @PatchMapping("/{id}/iniciar-remediacion")
     public Map<String, String> iniciarRemediacion(@PathVariable String id,
-                                                  @Valid @RequestBody IniciarRemediacionRequest req) {
-        iniciarRemediacionUseCase.ejecutar(HallazgoId.de(id), req.responsable(), req.fechaLimite(), req.notas());
+                                                  @Valid @RequestBody IniciarRemediacionRequest req,
+                                                  @RequestHeader(value = USUARIO, defaultValue = "anonimo") String usuario) {
+        iniciarRemediacionUseCase.ejecutar(HallazgoId.de(id), req.responsable(), req.fechaLimite(), req.notas(), usuario);
         return Map.of("estado", "EN_REMEDIACION");
     }
 
     @PatchMapping("/{id}/cerrar")
-    public Map<String, String> cerrar(@PathVariable String id) {
-        cerrarUseCase.ejecutar(HallazgoId.de(id));
+    public Map<String, String> cerrar(@PathVariable String id,
+                                      @RequestHeader(value = USUARIO, defaultValue = "anonimo") String usuario) {
+        cerrarUseCase.ejecutar(HallazgoId.de(id), usuario);
         return Map.of("estado", "CERRADO");
     }
 
     @PatchMapping("/{id}/reabrir")
-    public Map<String, String> reabrir(@PathVariable String id, @Valid @RequestBody ReabrirRequest req) {
-        reabrirUseCase.ejecutar(HallazgoId.de(id), req.motivo());
+    public Map<String, String> reabrir(@PathVariable String id, @Valid @RequestBody ReabrirRequest req,
+                                       @RequestHeader(value = USUARIO, defaultValue = "anonimo") String usuario) {
+        reabrirUseCase.ejecutar(HallazgoId.de(id), req.motivo(), usuario);
         return Map.of("estado", "REABIERTO");
     }
 
